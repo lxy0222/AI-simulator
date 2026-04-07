@@ -1,58 +1,126 @@
 <template>
-  <!-- ============================================
-       配置面板组件
-       左侧表单区域，用于配置模拟患者参数
-       ============================================ -->
   <div class="config-panel">
-    <!-- 面板标题 -->
     <div class="panel-header">
       <div class="header-icon">
         <el-icon :size="22"><Setting /></el-icon>
       </div>
       <div class="header-text">
-        <h2>模拟配置</h2>
-        <p>设定模拟患者的参数</p>
+        <h2>测试配置</h2>
+        <p>选择 Agent 模板、患者画像和动态测试入参</p>
       </div>
     </div>
 
-    <!-- 配置表单 -->
     <el-form
       :model="form"
       label-position="top"
       class="config-form"
-      :disabled="isRunning"
+      :disabled="isRunning || !selectedTemplate"
     >
-      <!-- 就诊场景 -->
-      <el-form-item label="就诊场景">
-        <el-select v-model="form.scenario" placeholder="选择场景" style="width: 100%">
-          <el-option label="初诊" value="初诊" />
-          <el-option label="复诊" value="复诊" />
+      <el-form-item label="被测 Agent 模板">
+        <el-select v-model="form.agent_template_id" placeholder="选择 Agent 模板" style="width: 100%">
+          <el-option
+            v-for="template in agentTemplates"
+            :key="template.id"
+            :label="template.name"
+            :value="template.id"
+          />
         </el-select>
       </el-form-item>
 
-      <!-- 患者画像 -->
+      <div v-if="selectedTemplate" class="template-intro">
+        <div class="template-name">{{ selectedTemplate.name }}</div>
+        <div class="template-desc">{{ selectedTemplate.description }}</div>
+      </div>
+
       <el-form-item label="患者画像">
+        <el-select v-model="form.patient_profile_id" placeholder="选择患者画像" style="width: 100%">
+          <el-option
+            v-for="profile in patientProfiles"
+            :key="profile.id"
+            :label="profile.name"
+            :value="profile.id"
+          />
+        </el-select>
+      </el-form-item>
+
+      <div v-if="selectedPatient" class="patient-card">
+        <div class="patient-card-title">
+          <span>{{ selectedPatient.name }}</span>
+          <span>{{ patientMeta }}</span>
+        </div>
+        <div class="patient-card-complaint">{{ selectedPatient.chief_complaint }}</div>
+        <div class="patient-tags">
+          <span
+            v-for="tag in selectedPatient.reusable_tags || []"
+            :key="tag"
+            class="patient-tag"
+          >
+            {{ tag }}
+          </span>
+        </div>
+      </div>
+
+      <template v-for="field in templateFields" :key="field.name">
+        <el-form-item :label="field.label">
+          <el-select
+            v-if="field.type === 'select'"
+            :model-value="getFieldValue(field)"
+            @update:model-value="(value) => setFieldValue(field, value)"
+            style="width: 100%"
+          >
+            <el-option
+              v-for="option in field.options || []"
+              :key="option.value"
+              :label="option.label"
+              :value="option.value"
+            />
+          </el-select>
+
+          <el-input
+            v-else-if="field.type === 'textarea'"
+            :model-value="getFieldValue(field)"
+            @update:model-value="(value) => setFieldValue(field, value)"
+            type="textarea"
+            :rows="field.name === 'boundary_conditions' ? 4 : 3"
+            :placeholder="field.placeholder || field.help_text"
+            resize="vertical"
+          />
+
+          <el-input-number
+            v-else-if="field.type === 'number'"
+            :model-value="getFieldValue(field)"
+            @update:model-value="(value) => setFieldValue(field, value)"
+            :min="field.min ?? 0"
+            :max="field.max ?? 999"
+            :step="1"
+            style="width: 100%"
+          />
+
+          <el-switch
+            v-else-if="field.type === 'switch'"
+            :model-value="getFieldValue(field)"
+            @update:model-value="(value) => setFieldValue(field, value)"
+          />
+
+          <el-input
+            v-else
+            :model-value="getFieldValue(field)"
+            @update:model-value="(value) => setFieldValue(field, value)"
+            :placeholder="field.placeholder || field.help_text"
+          />
+        </el-form-item>
+      </template>
+
+      <el-form-item label="本轮患者补充说明">
         <el-input
-          v-model="form.identity_profile"
+          v-model="form.patient_notes"
           type="textarea"
-          :rows="5"
-          placeholder="描述模拟患者的身份背景..."
+          :rows="3"
+          placeholder="可补充本轮测试想强调的情绪、限制条件或特殊目标"
           resize="vertical"
         />
       </el-form-item>
 
-      <!-- 沟通风格 -->
-      <el-form-item label="沟通风格">
-        <el-input
-          v-model="form.communication_style"
-          type="textarea"
-          :rows="4"
-          placeholder="描述患者的说话方式和性格特点..."
-          resize="vertical"
-        />
-      </el-form-item>
-
-      <!-- 最大对话轮数 -->
       <el-form-item label="最大对话轮数">
         <el-input-number
           v-model="form.max_turns"
@@ -63,18 +131,17 @@
         />
       </el-form-item>
 
-      <!-- 操作按钮 -->
       <div class="form-actions">
         <el-button
           type="primary"
           size="large"
           :loading="isRunning"
-          :disabled="isRunning"
+          :disabled="isRunning || !selectedTemplate || !selectedPatient"
           @click="handleStart"
           class="start-btn"
         >
           <el-icon v-if="!isRunning"><VideoPlay /></el-icon>
-          <span>{{ isRunning ? '模拟进行中...' : '启动对话模拟' }}</span>
+          <span>{{ isRunning ? '测试进行中...' : '启动对话测试' }}</span>
         </el-button>
 
         <el-button
@@ -89,13 +156,11 @@
       </div>
     </el-form>
 
-    <!-- 状态信息 -->
     <div class="status-bar" v-if="statusInfo">
       <div class="status-indicator" :class="statusClass"></div>
       <span>{{ statusInfo }}</span>
     </div>
 
-    <!-- Mock 模式提示 -->
     <div class="mock-badge" v-if="isMockMode">
       <el-icon><Warning /></el-icon>
       <span>Mock 模式</span>
@@ -104,10 +169,12 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 
-// ---- Props & Emits ----
 const props = defineProps({
+  agentTemplates: { type: Array, default: () => [] },
+  patientProfiles: { type: Array, default: () => [] },
+  defaultRequest: { type: Object, default: null },
   isRunning: { type: Boolean, default: false },
   hasMessages: { type: Boolean, default: false },
   statusInfo: { type: String, default: '' },
@@ -117,21 +184,126 @@ const props = defineProps({
 
 const emit = defineEmits(['start', 'reset'])
 
-// ---- 表单数据 ----
-const form = ref({
-  scenario: '初诊',
-  identity_profile: '一位焦虑的母亲，带6岁女儿来看小儿鼻炎。\n女儿经常鼻塞、流清涕，晚上睡觉张口呼吸。\n之前在西医院看过，用了喷鼻药效果不好，想尝试中医治疗。',
-  communication_style: '说话简短急切，会用短句表达。\n有些焦虑和不耐烦，但对医生还是比较尊重。\n喜欢追问具体的治疗方案和时间。',
+const emptyForm = () => ({
+  agent_template_id: '',
+  patient_profile_id: '',
+  scenario: '',
+  initial_state: '',
+  boundary_conditions: '',
+  patient_notes: '',
   max_turns: 5,
+  extra_inputs: {},
 })
 
-// ---- 事件处理 ----
+const form = ref(emptyForm())
+
+const selectedTemplate = computed(() =>
+  props.agentTemplates.find((item) => item.id === form.value.agent_template_id),
+)
+
+const selectedPatient = computed(() =>
+  props.patientProfiles.find((item) => item.id === form.value.patient_profile_id),
+)
+
+const patientMeta = computed(() => {
+  if (!selectedPatient.value) return ''
+  const age = selectedPatient.value.age ? `${selectedPatient.value.age}岁` : '年龄未知'
+  return `${selectedPatient.value.gender || '性别未知'} / ${age}`
+})
+
+const templateFields = computed(() => selectedTemplate.value?.input_schema || [])
+
+watch(
+  () => props.defaultRequest,
+  (request) => {
+    if (!request) return
+    form.value = normalizeForm(request, props.agentTemplates)
+  },
+  { immediate: true, deep: true },
+)
+
+watch(
+  () => form.value.agent_template_id,
+  (nextId, prevId) => {
+    if (!nextId) return
+    if (nextId === prevId) return
+
+    const template = props.agentTemplates.find((item) => item.id === nextId)
+    if (!template) return
+
+    const preservedPatientId =
+      form.value.patient_profile_id || props.defaultRequest?.patient_profile_id || props.patientProfiles[0]?.id || ''
+
+    form.value = {
+      ...emptyForm(),
+      agent_template_id: nextId,
+      patient_profile_id: preservedPatientId,
+      scenario: template.default_scenario || '',
+      initial_state: template.default_initial_state || '',
+      boundary_conditions: template.default_boundary_conditions || '',
+      patient_notes: form.value.patient_notes || '',
+      max_turns: form.value.max_turns || props.defaultRequest?.max_turns || 5,
+      extra_inputs: buildExtraInputs(template),
+    }
+  },
+)
+
+const getFieldValue = (field) => {
+  if (field.name === 'scenario') return form.value.scenario
+  if (field.name === 'initial_state') return form.value.initial_state
+  if (field.name === 'boundary_conditions') return form.value.boundary_conditions
+  return form.value.extra_inputs[field.name]
+}
+
+const setFieldValue = (field, value) => {
+  if (field.name === 'scenario') {
+    form.value.scenario = value
+  } else if (field.name === 'initial_state') {
+    form.value.initial_state = value
+  } else if (field.name === 'boundary_conditions') {
+    form.value.boundary_conditions = value
+  } else {
+    form.value.extra_inputs = {
+      ...form.value.extra_inputs,
+      [field.name]: value,
+    }
+  }
+}
+
 const handleStart = () => {
-  emit('start', { ...form.value })
+  emit('start', JSON.parse(JSON.stringify(form.value)))
 }
 
 const handleReset = () => {
   emit('reset')
+}
+
+function normalizeForm(request, templates) {
+  const template = templates.find((item) => item.id === request.agent_template_id) || templates[0]
+  return {
+    agent_template_id: request.agent_template_id || template?.id || '',
+    patient_profile_id: request.patient_profile_id || '',
+    scenario: request.scenario || template?.default_scenario || '',
+    initial_state: request.initial_state || template?.default_initial_state || '',
+    boundary_conditions: request.boundary_conditions || template?.default_boundary_conditions || '',
+    patient_notes: request.patient_notes || '',
+    max_turns: request.max_turns || 5,
+    extra_inputs: {
+      ...buildExtraInputs(template),
+      ...(request.extra_inputs || {}),
+    },
+  }
+}
+
+function buildExtraInputs(template) {
+  if (!template?.input_schema) return {}
+  return template.input_schema.reduce((acc, field) => {
+    if (['scenario', 'initial_state', 'boundary_conditions'].includes(field.name)) {
+      return acc
+    }
+    acc[field.name] = field.default
+    return acc
+  }, {})
 }
 </script>
 
@@ -144,12 +316,11 @@ const handleReset = () => {
   overflow-y: auto;
 }
 
-/* ---- 面板标题 ---- */
 .panel-header {
   display: flex;
   align-items: center;
   gap: 14px;
-  margin-bottom: 28px;
+  margin-bottom: 24px;
   padding-bottom: 20px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 }
@@ -178,13 +349,12 @@ const handleReset = () => {
   color: var(--text-muted);
 }
 
-/* ---- 表单区域 ---- */
 .config-form {
   flex: 1;
 }
 
 .config-form :deep(.el-form-item) {
-  margin-bottom: 20px;
+  margin-bottom: 18px;
 }
 
 .config-form :deep(.el-form-item__label) {
@@ -192,7 +362,49 @@ const handleReset = () => {
   padding-bottom: 6px;
 }
 
-/* ---- 操作按钮 ---- */
+.template-intro,
+.patient-card {
+  margin-bottom: 18px;
+  padding: 14px 16px;
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.template-name,
+.patient-card-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.template-desc,
+.patient-card-complaint {
+  margin-top: 8px;
+  font-size: 12px;
+  line-height: 1.7;
+  color: var(--text-secondary);
+}
+
+.patient-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.patient-tag {
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  background: rgba(102, 126, 234, 0.16);
+  color: var(--primary-light);
+}
+
 .form-actions {
   display: flex;
   gap: 12px;
@@ -215,10 +427,6 @@ const handleReset = () => {
   box-shadow: var(--shadow-glow);
 }
 
-.start-btn:active:not(:disabled) {
-  transform: translateY(0);
-}
-
 .reset-btn {
   background: rgba(255, 255, 255, 0.06) !important;
   border: 1px solid rgba(255, 255, 255, 0.1) !important;
@@ -233,7 +441,6 @@ const handleReset = () => {
   color: var(--text-primary) !important;
 }
 
-/* ---- 状态栏 ---- */
 .status-bar {
   display: flex;
   align-items: center;
@@ -258,29 +465,28 @@ const handleReset = () => {
   animation: pulse 1.5s infinite;
 }
 
-.status-indicator.done {
-  background: var(--primary-color);
-}
-
 .status-indicator.error {
   background: var(--danger-color);
 }
 
-.status-indicator.idle {
-  background: var(--text-muted);
+.status-indicator.done {
+  background: var(--primary-light);
 }
 
-/* ---- Mock 模式标记 ---- */
+.status-indicator.idle {
+  background: rgba(255, 255, 255, 0.2);
+}
+
 .mock-badge {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 6px;
-  margin-top: 12px;
-  padding: 8px 12px;
-  background: rgba(245, 158, 11, 0.1);
-  border: 1px solid rgba(245, 158, 11, 0.2);
-  border-radius: var(--radius-sm);
-  font-size: 12px;
+  align-self: flex-start;
+  margin-top: 14px;
+  padding: 6px 10px;
+  border-radius: var(--radius-full);
+  background: rgba(245, 158, 11, 0.12);
   color: var(--warning-color);
+  font-size: 12px;
 }
 </style>

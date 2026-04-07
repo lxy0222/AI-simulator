@@ -1,15 +1,9 @@
 <template>
-  <!-- ============================================
-       AutoZenith - AI 对话博弈测试平台
-       主应用布局：左侧配置面板 + 右侧聊天窗口
-       ============================================ -->
   <div class="app-container">
-    <!-- 背景装饰元素 -->
     <div class="bg-orb bg-orb-1"></div>
     <div class="bg-orb bg-orb-2"></div>
     <div class="bg-orb bg-orb-3"></div>
 
-    <!-- 顶部导航栏 -->
     <header class="app-header">
       <div class="logo-area">
         <div class="logo-icon">
@@ -29,14 +23,15 @@
           <span class="version-badge">v1.0</span>
         </div>
       </div>
-      <p class="header-subtitle">AI 对话博弈测试平台 — 中医导诊智能体自动化评估</p>
+      <p class="header-subtitle">医疗 Agent 测试框架 — 多模板、多画像、多轮评估</p>
     </header>
 
-    <!-- 主内容区 -->
     <main class="main-content">
-      <!-- 左侧：配置面板 -->
       <aside class="left-panel glass-card">
         <ConfigPanel
+          :agent-templates="agentTemplates"
+          :patient-profiles="patientProfiles"
+          :default-request="defaultRequest"
           :is-running="isRunning"
           :has-messages="messages.length > 0"
           :status-info="statusInfo"
@@ -47,10 +42,12 @@
         />
       </aside>
 
-      <!-- 右侧：聊天窗口 -->
       <section class="right-panel glass-card">
         <ChatWindow
           :messages="messages"
+          :evaluation-report="evaluationReport"
+          :run-info="runInfo"
+          :agent-label="activeAgentLabel"
           :is-running="isRunning"
           :is-thinking="isThinking"
           :current-turn="currentTurn"
@@ -67,35 +64,34 @@ import { ElMessage } from 'element-plus'
 import ConfigPanel from './components/ConfigPanel.vue'
 import ChatWindow from './components/ChatWindow.vue'
 
-// ============================================
-// 状态管理
-// ============================================
-
-// 聊天消息列表
 const messages = ref([])
-
-// 运行状态
 const isRunning = ref(false)
 const isThinking = ref(false)
 const currentTurn = ref(0)
 const maxTurns = ref(5)
-
-// 状态信息
 const statusInfo = ref('')
 const statusClass = ref('idle')
-
-// Mock 模式标识
 const isMockMode = ref(false)
+const agentTemplates = ref([])
+const patientProfiles = ref([])
+const defaultRequest = ref(null)
+const evaluationReport = ref(null)
+const runInfo = ref(null)
+const activeAgentLabel = ref('被测 Agent')
 
-// ============================================
-// 初始化：获取默认配置
-// ============================================
 onMounted(async () => {
   try {
     const resp = await fetch('/api/config/defaults')
     if (resp.ok) {
       const data = await resp.json()
       isMockMode.value = data.mock_mode
+      agentTemplates.value = data.agent_templates || []
+      patientProfiles.value = data.patient_profiles || []
+      defaultRequest.value = data.default_request || null
+      const defaultTemplate = agentTemplates.value.find(
+        (item) => item.id === data.default_request?.agent_template_id,
+      )
+      activeAgentLabel.value = defaultTemplate?.name || '被测 Agent'
       statusInfo.value = 'API 连接正常'
       statusClass.value = 'idle'
     }
@@ -105,21 +101,21 @@ onMounted(async () => {
   }
 })
 
-// ============================================
-// 核心逻辑：使用 fetch + ReadableStream 读取 SSE
-// ============================================
 const handleStartSimulation = async (config) => {
-  // 重置状态
   messages.value = []
+  evaluationReport.value = null
+  runInfo.value = null
   isRunning.value = true
   isThinking.value = false
   currentTurn.value = 0
   maxTurns.value = config.max_turns
   statusInfo.value = '正在初始化对话...'
   statusClass.value = 'running'
+  activeAgentLabel.value = agentTemplates.value.find(
+    (item) => item.id === config.agent_template_id,
+  )?.name || '被测 Agent'
 
   try {
-    // 发起 SSE 请求
     const response = await fetch('/api/simulation/start', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -130,7 +126,6 @@ const handleStartSimulation = async (config) => {
       throw new Error(`HTTP ${response.status}: ${response.statusText}`)
     }
 
-    // 使用 ReadableStream 解析 SSE 流
     const reader = response.body.getReader()
     const decoder = new TextDecoder()
     let buffer = ''
@@ -139,16 +134,11 @@ const handleStartSimulation = async (config) => {
       const { done, value } = await reader.read()
       if (done) break
 
-      // 解码并拼接到缓冲区
       buffer += decoder.decode(value, { stream: true })
-
-      // 按换行分割处理每条消息
       const lines = buffer.split('\n')
-      // 保留最后一行（可能不完整）
       buffer = lines.pop() || ''
 
       for (const line of lines) {
-        // SSE 格式：data: {...}
         const trimmed = line.trim()
         if (!trimmed || !trimmed.startsWith('data:')) continue
 
@@ -159,13 +149,11 @@ const handleStartSimulation = async (config) => {
           const event = JSON.parse(jsonStr)
           handleSSEEvent(event)
         } catch {
-          // 忽略 JSON 解析错误（可能是不完整的消息）
           console.warn('SSE 解析跳过:', jsonStr)
         }
       }
     }
 
-    // 处理缓冲区中可能剩余的最后一条消息
     if (buffer.trim()) {
       const trimmed = buffer.trim()
       if (trimmed.startsWith('data:')) {
@@ -174,7 +162,6 @@ const handleStartSimulation = async (config) => {
           const event = JSON.parse(jsonStr)
           handleSSEEvent(event)
         } catch {
-          // 忽略
         }
       }
     }
@@ -188,38 +175,46 @@ const handleStartSimulation = async (config) => {
   }
 }
 
-// ============================================
-// 处理 SSE 事件
-// ============================================
 const handleSSEEvent = (event) => {
   const { event: eventType, data } = event
 
   switch (eventType) {
     case 'start':
       statusInfo.value = data.message || '对话已开始'
+      runInfo.value = {
+        runId: data.run_id,
+        runFile: data.run_file,
+      }
       if (data.config?.mock_mode) {
         isMockMode.value = true
+      }
+      if (data.config?.agent_template_name) {
+        activeAgentLabel.value = data.config.agent_template_name
       }
       break
 
     case 'message':
-      // 收到对话消息（simulator 或 dify）
       messages.value.push({
         role: data.role,
         content: data.content,
         trace: data.trace || [],
+        perceptions: data.perceptions || {},
         turn: data.turn,
         timestamp: data.timestamp,
       })
       currentTurn.value = data.turn
       isThinking.value = false
-      statusInfo.value = `第 ${data.turn} 轮 - ${data.role === 'simulator' ? '患者发言' : '客服回复'}`
+      statusInfo.value = `第 ${data.turn} 轮 - ${data.role === 'simulator' ? '患者发言' : `${activeAgentLabel.value} 回复`}`
       break
 
     case 'thinking':
-      // Dify 正在思考
       isThinking.value = true
       statusInfo.value = data.message || 'AI 正在思考...'
+      break
+
+    case 'evaluation':
+      evaluationReport.value = data
+      statusInfo.value = '评估报告已生成'
       break
 
     case 'error':
@@ -230,19 +225,30 @@ const handleSSEEvent = (event) => {
       break
 
     case 'done':
-      statusInfo.value = `${data.message} (共 ${data.total_turns} 轮)`
-      statusClass.value = 'done'
+      statusInfo.value = data.total_turns
+        ? `${data.message} (共 ${data.total_turns} 轮)`
+        : (data.message || '运行结束')
+      statusClass.value = data.status === 'failed' ? 'error' : 'done'
       isThinking.value = false
-      ElMessage.success('对话模拟完成！')
+      runInfo.value = {
+        ...(runInfo.value || {}),
+        runId: data.run_id || runInfo.value?.runId,
+        runFile: data.run_file || runInfo.value?.runFile,
+        status: data.status,
+      }
+      if (data.status === 'failed') {
+        ElMessage.error('测试运行异常结束')
+      } else {
+        ElMessage.success('对话模拟完成！')
+      }
       break
   }
 }
 
-// ============================================
-// 重置
-// ============================================
 const handleReset = () => {
   messages.value = []
+  evaluationReport.value = null
+  runInfo.value = null
   isRunning.value = false
   isThinking.value = false
   currentTurn.value = 0

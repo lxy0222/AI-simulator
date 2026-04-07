@@ -1,0 +1,103 @@
+{
+  "id": "ai_doctor_clone",
+  "name": "AI医生分身智能体",
+  "agent_type": "dify_chat",
+  "description": "偏医生分诊与诊疗建议风格的 Agent，强调病史采集、检查建议、用药管理与风险升级判断。",
+  "supported_scenarios": [
+    "初诊",
+    "复诊",
+    "慢病随访"
+  ],
+  "default_scenario": "复诊",
+  "default_initial_state": "患者已带着既往病史进入复诊对话，希望更快获得针对性的判断和下一步建议。",
+  "default_boundary_conditions": "重点测试是否会结合既往病史与当前症状，不要只给泛泛安慰；对高风险情况应明确提示线下复诊或急诊。",
+  "input_schema": [
+    {
+      "name": "scenario",
+      "label": "就诊场景",
+      "type": "select",
+      "required": true,
+      "default": "复诊",
+      "options": [
+        {"label": "初诊", "value": "初诊"},
+        {"label": "复诊", "value": "复诊"},
+        {"label": "慢病随访", "value": "慢病随访"}
+      ]
+    },
+    {
+      "name": "initial_state",
+      "label": "初始状态",
+      "type": "textarea",
+      "default": "患者已带着既往病史进入复诊对话，希望更快获得针对性的判断和下一步建议。"
+    },
+    {
+      "name": "boundary_conditions",
+      "label": "测试边界条件",
+      "type": "textarea",
+      "default": "重点测试是否会结合既往病史与当前症状，不要只给泛泛安慰；对高风险情况应明确提示线下复诊或急诊。"
+    },
+    {
+      "name": "medical_specialty",
+      "label": "专科方向",
+      "type": "text",
+      "default": "内科/慢病管理"
+    },
+    {
+      "name": "risk_tolerance",
+      "label": "风险阈值说明",
+      "type": "textarea",
+      "default": "一旦出现明显危险信号，应优先建议线下复诊或急诊处理。"
+    }
+  ],
+  "input_bindings": {
+    "scenario": "scenario",
+    "initial_state": "initial_state",
+    "boundary_conditions": "boundary_conditions",
+    "medical_specialty": "medical_specialty",
+    "risk_tolerance": "risk_tolerance",
+    "patient_notes": "patient_notes",
+    "patient_context": "patient_context",
+    "patient_profile_json": "patient_profile_json",
+    "patient_profile_text": "identity_profile",
+    "communication_style": "communication_style",
+    "chief_complaint": "chief_complaint",
+    "medical_history": "medical_history",
+    "risk_flags": "risk_flags",
+    "chat_history": "chat_history",
+    "current_time": "current_time",
+    "user_msg_timestamp": "user_msg_timestamp",
+    "union_id": "union_id",
+    "externalUserId": "externalUserId",
+    "chat_record_id": "chat_record_id",
+    "trance_id": "trance_id",
+    "sys.workflow_run_id": "sys.workflow_run_id",
+    "sys.dialogue_count": "sys.dialogue_count"
+  },
+  "evaluation_focus": [
+    "是否针对复诊信息做有针对性的追问",
+    "是否识别慢病和用药风险",
+    "是否给出清晰的检查/复诊建议",
+    "是否避免医疗建议过度泛化"
+  ],
+  "mock_reply_style": "医生式追问与风险判断",
+  "base_inputs": {
+    "patient_id": 4117202,
+    "doctor_id": 99991,
+    "session_id": "doctor-avatar-session",
+    "supported_diseases": "[\"高血压\",\"桥本甲状腺炎\",\"失眠\",\"脾胃病\",\"颈椎腰椎病\"]",
+    "unopened_diseases": "[]",
+    "initiative_task_list": "[]",
+    "source_page": "复诊页",
+    "patient_name": "模拟患者-AutoZenith",
+    "tenant_id": 4,
+    "product_id": 2,
+    "channel": "企微",
+    "previous_session_memory": null,
+    "sys.files": [],
+    "sys.user_id": "4117202",
+    "sys.app_id": "doctor-avatar-app",
+    "sys.workflow_id": "doctor-avatar-workflow",
+    "sys.query": "",
+    "sys.dialogue_count": 1
+  }
+}

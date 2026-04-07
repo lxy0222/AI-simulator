@@ -1,0 +1,40 @@
+{
+  "id": "hypertension_followup_worker",
+  "name": "张先生",
+  "gender": "男",
+  "age": 52,
+  "chief_complaint": "高血压复诊，最近头晕并担心药物副作用",
+  "current_symptoms": [
+    "最近一周偶尔头晕",
+    "早晨血压偏高",
+    "工作压力大",
+    "睡眠一般"
+  ],
+  "medical_history": [
+    "高血压病史3年",
+    "近半年持续服用降压药",
+    "有轻度脂肪肝"
+  ],
+  "medication_history": [
+    "缬沙坦",
+    "偶尔自行漏服"
+  ],
+  "allergies": [],
+  "background_story": "上班族，希望复诊时尽量高效，也担心长期吃药伤身体。",
+  "communication_style": "整体理性，但对副作用敏感，会追问药物、检查和复诊频率。",
+  "persona": "忙碌、谨慎、对健康管理有一定意识。",
+  "expectations": [
+    "确认头晕是否危险",
+    "想知道是否需要调整用药",
+    "希望得到复诊或检查建议"
+  ],
+  "risk_flags": [
+    "高血压长期管理",
+    "可能存在依从性不足"
+  ],
+  "reusable_tags": [
+    "慢病",
+    "复诊",
+    "心血管"
+  ]
+}

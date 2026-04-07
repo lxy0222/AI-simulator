@@ -7,12 +7,12 @@
             <span>患</span>
           </div>
           <div class="vs-badge">VS</div>
-          <div class="avatar dify-avatar" title="Dify 客服">
+          <div class="avatar dify-avatar" :title="agentLabel">
             <span>方</span>
           </div>
         </div>
         <div class="chat-title">
-          <h3>AI 对话博弈</h3>
+          <h3>{{ agentLabel }}</h3>
           <p class="chat-subtitle">
             {{ isRunning ? `第 ${currentTurn} 轮对话中...` : (messages.length > 0 ? '对话已结束' : '等待启动') }}
           </p>
@@ -53,7 +53,7 @@
 
         <div class="msg-bubble-wrapper">
           <div class="msg-role-label">
-            {{ msg.role === 'simulator' ? '模拟患者' : 'Dify 客服（小方）' }}
+            {{ actorLabel(msg.role) }}
             <span class="msg-turn">第{{ msg.turn }}轮</span>
           </div>
 
@@ -124,6 +124,19 @@
               <div v-if="msg.role === 'dify' && hasTrace(msg)" class="final-answer-label">最终回复</div>
               <span class="msg-text">{{ msg.content }}</span>
             </div>
+
+            <div
+              v-if="msg.role === 'dify' && hasPerceptions(msg)"
+              class="perception-row"
+            >
+              <span
+                v-for="(event, perceptionIndex) in msg.perceptions.visible_events"
+                :key="perceptionIndex"
+                class="perception-chip"
+              >
+                {{ event }}
+              </span>
+            </div>
           </div>
 
           <div class="msg-time">{{ formatTime(msg.timestamp) }}</div>
@@ -135,7 +148,7 @@
           <span>方</span>
         </div>
         <div class="msg-bubble-wrapper">
-          <div class="msg-role-label">Dify 客服（小方）</div>
+          <div class="msg-role-label">{{ agentLabel }}</div>
           <div class="msg-bubble dify-bubble typing-indicator">
             <div class="typing-dots">
               <span></span>
@@ -143,6 +156,55 @@
               <span></span>
             </div>
           </div>
+        </div>
+      </div>
+
+      <div v-if="evaluationReport" class="evaluation-card">
+        <div class="evaluation-header">
+          <div>
+            <h4>自动评估报告</h4>
+            <p>{{ evaluationReport.summary }}</p>
+          </div>
+          <div class="evaluation-score">{{ Math.round(evaluationReport.overall_score || 0) }}</div>
+        </div>
+
+        <div class="evaluation-grid">
+          <div
+            v-for="dimension in evaluationReport.dimensions || []"
+            :key="dimension.name"
+            class="evaluation-dimension"
+          >
+            <div class="dimension-top">
+              <span>{{ dimension.name }}</span>
+              <strong>{{ Math.round(dimension.score || 0) }}</strong>
+            </div>
+            <p>{{ dimension.rationale }}</p>
+          </div>
+        </div>
+
+        <div class="evaluation-list-block" v-if="(evaluationReport.strengths || []).length">
+          <div class="evaluation-list-title">亮点</div>
+          <ul>
+            <li v-for="item in evaluationReport.strengths" :key="item">{{ item }}</li>
+          </ul>
+        </div>
+
+        <div class="evaluation-list-block" v-if="(evaluationReport.risks || []).length">
+          <div class="evaluation-list-title">风险</div>
+          <ul>
+            <li v-for="item in evaluationReport.risks" :key="item">{{ item }}</li>
+          </ul>
+        </div>
+
+        <div class="evaluation-list-block" v-if="(evaluationReport.recommendations || []).length">
+          <div class="evaluation-list-title">建议</div>
+          <ul>
+            <li v-for="item in evaluationReport.recommendations" :key="item">{{ item }}</li>
+          </ul>
+        </div>
+
+        <div v-if="runInfo?.runFile" class="evaluation-file">
+          结果文件：{{ runInfo.runFile }}
         </div>
       </div>
     </div>
@@ -164,6 +226,9 @@ import { ref, computed, watch, nextTick } from 'vue'
 
 const props = defineProps({
   messages: { type: Array, default: () => [] },
+  evaluationReport: { type: Object, default: null },
+  runInfo: { type: Object, default: null },
+  agentLabel: { type: String, default: '被测 Agent' },
   isRunning: { type: Boolean, default: false },
   isThinking: { type: Boolean, default: false },
   currentTurn: { type: Number, default: 0 },
@@ -199,6 +264,13 @@ const progressPercent = computed(() => {
 })
 
 const hasTrace = (msg) => Array.isArray(msg.trace) && msg.trace.length > 0
+const hasPerceptions = (msg) => Array.isArray(msg?.perceptions?.visible_events) && msg.perceptions.visible_events.length > 0
+
+const actorLabel = (role) => {
+  if (role === 'simulator') return '模拟患者'
+  if (role === 'dify') return props.agentLabel
+  return role
+}
 
 const getTraceTitle = (traceItem, index) => {
   const position = traceItem?.position || index + 1
@@ -597,6 +669,23 @@ const formatTime = (timestamp) => {
   opacity: 0.86;
 }
 
+.perception-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.perception-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 9px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  font-size: 11px;
+  line-height: 1.3;
+}
+
 .thinking-row {
   opacity: 0.92;
 }
@@ -658,6 +747,104 @@ const formatTime = (timestamp) => {
   transition: width 0.35s ease;
 }
 
+.evaluation-card {
+  margin-top: 8px;
+  padding: 18px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.evaluation-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.evaluation-header h4 {
+  font-size: 16px;
+  color: var(--text-primary);
+}
+
+.evaluation-header p {
+  margin-top: 6px;
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+.evaluation-score {
+  min-width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  font-weight: 700;
+  color: white;
+  background: var(--primary-gradient);
+  box-shadow: var(--shadow-glow);
+}
+
+.evaluation-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.evaluation-dimension {
+  padding: 14px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.dimension-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 13px;
+  color: var(--text-primary);
+}
+
+.evaluation-dimension p {
+  margin-top: 8px;
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+.evaluation-list-block {
+  margin-top: 16px;
+}
+
+.evaluation-list-title {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--text-primary);
+}
+
+.evaluation-list-block ul {
+  margin-top: 8px;
+  padding-left: 18px;
+  color: var(--text-secondary);
+}
+
+.evaluation-list-block li {
+  line-height: 1.8;
+}
+
+.evaluation-file {
+  margin-top: 14px;
+  color: var(--text-muted);
+  font-size: 12px;
+  word-break: break-all;
+}
+
 @keyframes blink {
   0%, 80%, 100% {
     opacity: 0.35;
@@ -684,6 +871,10 @@ const formatTime = (timestamp) => {
   .trace-summary {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .evaluation-grid {
+    grid-template-columns: 1fr;
   }
 }
 </style>

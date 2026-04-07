@@ -1,0 +1,39 @@
+{
+  "id": "anxious_mother_child_rhinitis",
+  "name": "李女士",
+  "gender": "女",
+  "age": 34,
+  "chief_complaint": "孩子鼻炎反复发作，夜间鼻塞明显",
+  "current_symptoms": [
+    "6岁女儿反复鼻塞",
+    "流清鼻涕",
+    "夜里张口呼吸",
+    "偶尔打呼噜"
+  ],
+  "medical_history": [
+    "孩子曾在西医院看诊",
+    "用过喷鼻药",
+    "停药后容易反复"
+  ],
+  "medication_history": [
+    "断续使用鼻喷药物"
+  ],
+  "allergies": [],
+  "background_story": "作为孩子母亲，对症状反复非常焦虑，希望尽快找到稳定方案。",
+  "communication_style": "说话偏简短，有点着急，尊重医生但会反复追问治疗效果和周期。",
+  "persona": "焦虑、负责、希望快点解决问题的家长。",
+  "expectations": [
+    "确认是否适合中医调理",
+    "希望获得明确下一步建议",
+    "关心是否需要尽快线下就诊"
+  ],
+  "risk_flags": [
+    "夜间张口呼吸",
+    "长期反复发作"
+  ],
+  "reusable_tags": [
+    "儿科",
+    "鼻炎",
+    "家长咨询"
+  ]
+}

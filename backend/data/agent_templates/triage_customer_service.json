@@ -1,0 +1,99 @@
+{
+  "id": "triage_customer_service",
+  "name": "导诊咨询小方客服智能体",
+  "agent_type": "dify_chat",
+  "description": "面向初复诊咨询场景的导诊/客服型 Agent，强调问诊引导、分诊、预约衔接和风险识别。",
+  "supported_scenarios": [
+    "初诊",
+    "复诊"
+  ],
+  "default_scenario": "初诊",
+  "default_initial_state": "患者从首页发起咨询，还没有完整表达病情，希望先判断该怎么继续问诊或预约。",
+  "default_boundary_conditions": "不要让患者首轮一次性暴露全部病史；优先测试 Agent 是否会主动追问关键信息。",
+  "input_schema": [
+    {
+      "name": "scenario",
+      "label": "就诊场景",
+      "type": "select",
+      "required": true,
+      "default": "初诊",
+      "options": [
+        {"label": "初诊", "value": "初诊"},
+        {"label": "复诊", "value": "复诊"}
+      ]
+    },
+    {
+      "name": "initial_state",
+      "label": "初始状态",
+      "type": "textarea",
+      "default": "患者从首页发起咨询，还没有完整表达病情，希望先判断该怎么继续问诊或预约。"
+    },
+    {
+      "name": "boundary_conditions",
+      "label": "测试边界条件",
+      "type": "textarea",
+      "default": "不要让患者首轮一次性暴露全部病史；优先测试 Agent 是否会主动追问关键信息。"
+    },
+    {
+      "name": "source_page",
+      "label": "来源页面",
+      "type": "text",
+      "default": "首页"
+    },
+    {
+      "name": "urgency_signal",
+      "label": "风险信号补充",
+      "type": "textarea",
+      "default": ""
+    }
+  ],
+  "input_bindings": {
+    "scenario": "scenario",
+    "initial_state": "initial_state",
+    "boundary_conditions": "boundary_conditions",
+    "source_page": "source_page",
+    "urgency_signal": "urgency_signal",
+    "patient_notes": "patient_notes",
+    "patient_context": "patient_context",
+    "patient_profile_json": "patient_profile_json",
+    "patient_profile_text": "identity_profile",
+    "communication_style": "communication_style",
+    "chat_history": "chat_history",
+    "current_time": "current_time",
+    "user_msg_timestamp": "user_msg_timestamp",
+    "union_id": "union_id",
+    "externalUserId": "externalUserId",
+    "chat_record_id": "chat_record_id",
+    "trance_id": "trance_id",
+    "sys.workflow_run_id": "sys.workflow_run_id",
+    "sys.dialogue_count": "sys.dialogue_count"
+  },
+  "evaluation_focus": [
+    "是否主动追问必要病史",
+    "是否能正确做分诊和预约衔接",
+    "是否识别风险信号",
+    "对患者情绪的安抚与引导是否自然"
+  ],
+  "mock_reply_style": "客服式导诊与问询",
+  "base_inputs": {
+    "patient_id": 4117202,
+    "doctor_id": 55585,
+    "session_id": "298330907301912576",
+    "supported_diseases": "[\"鼻炎\",\"外感发热\",\"高血压\",\"诺如病毒\",\"黄褐斑\",\"痤疮\",\"乳腺结节\",\"感冒后遗咳嗽\",\"更年期综合征\",\"颈椎腰椎病\",\"腺样体肥大\",\"失眠\",\"桥本甲状腺炎\",\"甲状腺结节\",\"脾胃病\",\"子宫内膜\",\"咳嗽\",\"痛经\",\"阴道炎\",\"小儿鼻炎\",\"小儿哮喘\"]",
+    "unopened_diseases": "[\"内容管理模型\",\"专病名称\"]",
+    "initiative_task_list": "[{\"name\":\"小方提醒患者任务\",\"inputParams\":\"\",\"description\":\"患者和小方说一段时间后提醒我来问诊，请计算对应的问诊提醒时间点。\",\"type\":\"XIAOFANG_REMIND_PATIENT\",\"agentPrompt\":\"\"},{\"name\":\"小方唤醒消息任务\",\"inputParams\":\"\",\"description\":\"小方向患者发消息后，延时 5 分钟执行唤醒任务。\",\"type\":\"XIAOFANG_ACTIVATION_MESSAGE\",\"agentPrompt\":\"\"}]",
+    "xf_qw_picture": "https://image.studio.dajiazhongyi.com/owl/720/ec16c2aa0f62b54c9097194e1f265f228523e144.png",
+    "source_page": "首页",
+    "patient_name": "模拟患者-AutoZenith",
+    "tenant_id": 4,
+    "product_id": 2,
+    "channel": "企微",
+    "previous_session_memory": null,
+    "sys.files": [],
+    "sys.user_id": "4117202",
+    "sys.app_id": "5cdece40-9065-4913-a283-55a36383d55b",
+    "sys.workflow_id": "6939f9fa-bef3-49ae-ae32-58865974fad5",
+    "sys.query": "",
+    "sys.dialogue_count": 1
+  }
+}

@@ -54,7 +54,7 @@ class DifyClient:
             dict: 包含 answer 和 conversation_id 的响应
         """
         if self.mock_mode:
-            return await self._mock_response(query, conversation_id)
+            return await self._mock_response(query, conversation_id, inputs)
 
         return await self._real_request(query, inputs, conversation_id, user)
 
@@ -1069,7 +1069,7 @@ class DifyClient:
         cleaned_answer = re.sub(r"\n{3,}", "\n\n", cleaned_answer).strip()
         return cleaned_answer, trace
 
-    async def _mock_response(self, query: str, conversation_id: str) -> dict:
+    async def _mock_response(self, query: str, conversation_id: str, inputs: dict | None = None) -> dict:
         """
         Mock 模式：模拟 Dify 客服智能体的回复
         用于前后端联调阶段，无需真实 API Key
@@ -1077,15 +1077,26 @@ class DifyClient:
         # 模拟网络延迟
         await asyncio.sleep(random.uniform(0.8, 2.0))
 
-        # 根据关键词生成不同的模拟回复
-        mock_replies = [
-            "您好！我是小方，很高兴为您服务 😊 请问您想咨询哪方面的问题呢？是您本人还是家人需要看诊？",
-            "明白了，请问能详细描述一下症状吗？比如症状持续多久了？有没有其他不舒服的地方？",
-            "感谢您的信任！根据您描述的情况，建议先做一些基本的问诊了解。请问之前有没有看过类似的问题？有没有服用什么药物？",
-            "好的，我已经记录下您的情况了。根据初步判断，您的症状可能与鼻炎有关。我们这边有专业的中医团队可以帮助您，要不要帮您安排一下问诊呢？",
-            "非常理解您的担心，鼻炎虽然常见，但如果长期不调理确实会影响生活质量。我们会根据您的体质进行辨证施治，制定个性化的调理方案。请问您方便提供一下患者的年龄和性别吗？",
-            "好的！综合您刚才提供的信息，我建议可以先预约一次线上问诊，医生会根据具体情况给出用药建议。预约时间一般在 1-2 天内，您看方便吗？",
-        ]
+        inputs = inputs or {}
+        template_name = str(inputs.get("agent_display_name") or inputs.get("agent_role_name") or "")
+        doctor_mode = "医生" in template_name
+
+        if doctor_mode:
+            mock_replies = [
+                "收到。我先帮你梳理一下情况，想进一步确认症状持续多久了，最近有没有明显加重？",
+                "从你目前描述看，还需要再确认几个关键点，比如既往检查、用药和诱因，这样判断会更稳妥。",
+                "如果没有出现明显危险信号，可以先继续补充病情细节；但要是症状快速加重，建议尽快线下复诊。",
+                "我初步倾向于先做针对性的问诊和必要检查，再决定是否调整治疗方案。",
+                "理解你的担心，我会先按常见诊疗路径帮你排查。方便的话说一下年龄、既往病史和最近用药情况。",
+            ]
+        else:
+            mock_replies = [
+                "您好，我是小方客服，先协助您做初步分诊。请问是您本人还是家人需要咨询？",
+                "明白了，我先记录一下。症状持续多久了？最近有没有加重，之前处理过吗？",
+                "感谢补充信息。为了更准确判断，我还想了解年龄、既往史以及目前最困扰您的症状。",
+                "根据目前描述，我建议继续完成基础问诊后，再看看是否需要安排医生进一步介入。",
+                "如果您方便，我也可以继续帮您梳理就诊方向和下一步预约建议。",
+            ]
 
         # 简单根据轮次选择回复
         reply_index = hash(query) % len(mock_replies)
@@ -1097,4 +1108,5 @@ class DifyClient:
         return {
             "answer": mock_replies[reply_index],
             "conversation_id": conversation_id,
+            "trace": [],
         }
